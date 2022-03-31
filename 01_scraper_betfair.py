@@ -59,6 +59,8 @@ WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//span[co
 
 #loop through leagues
 count = 0
+today = datetime.datetime.today()
+tomorrow = today + datetime.timedelta(days=1)
 dict_frames = {} # 1 dataframe per league to be filled
 for country in dict_countries:
   curr_loop_str = f"{country}"
@@ -132,8 +134,6 @@ for country in dict_countries:
       df_data = df_data.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
       # replace words "In-Play", "Today" and "Tomorrow" with numeric dates
-      today = datetime.datetime.today()
-      tomorrow = today + datetime.timedelta(days=1)
       df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('In-Play', today.strftime("%A, %d %B"), x))
       df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Today', today.strftime("%A, %d %B"), x))
       df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Tomorrow', tomorrow.strftime("%d %b"), x))

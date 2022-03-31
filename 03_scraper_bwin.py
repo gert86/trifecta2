@@ -49,6 +49,8 @@ accept.click()
 
 #loop through leagues
 count = 0
+today = datetime.datetime.today()
+tomorrow = today + datetime.timedelta(days=1)
 dict_frames = {} # 1 dataframe per league to be filled
 for country in dict_countries:
   curr_loop_str = f"{country}"
@@ -78,8 +80,11 @@ for country in dict_countries:
 
       games = table.find_elements(by=By.XPATH,value='.//ms-event')
       for game in games:
-        date_time_str = game.find_element(by=By.XPATH, value='.//ms-prematch-timer').text  # 'Tomorrow / 8:30 PM' or ''
-        #date_str, start_time_str = [x.strip() for x in date_time_str.split('/')]
+        date_time_str = game.find_element(by=By.XPATH, value='.//ms-prematch-timer').text
+        date_time_str = re.sub('Today\s*/?\s+',    today.strftime("%d/%m/%y "), date_time_str)
+        date_time_str = re.sub('Tomorrow\s*/?\s+', tomorrow.strftime("%d/%m/%y "), date_time_str)
+        dt_temp = datetime.datetime.strptime(date_time_str, '%d/%m/%y %I:%M %p')
+        date_time_str = dt_temp.strftime('%Y-%m-%d %H:%M')
         
         teams = game.find_elements(by=By.XPATH,value='.//div[@class="participant-container"]')
         if len(teams) != 2:
