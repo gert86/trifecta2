@@ -87,43 +87,35 @@ for country in dict_countries:
       dict_odds = {}
       for m_key, market in market_dict.items():
         curr_loop_str = (f"{country}/{league}/{market}")
-        list_odds = []
-        teams = []
         list_dates = []
+        list_teams = []
+        list_odds = []
+
         
         # click on dropdown box and select current market (e.g. "Over/Under 2.5 Goals")
         dropdown = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CLASS_NAME, 'marketchooser-container')))
         dropdown.click()
         chooser = WebDriverWait(dropdown, 5).until(EC.element_to_be_clickable((By.XPATH, '//*[contains(text(),'+'"'+str(market)+'"'+')]')))
         chooser.click()
-        print(f"      selected market {market}")
-        
-        #finding sections, each containing matches for a specific date
-        time.sleep(1)                
-        sections = driver.find_elements(by=By.CLASS_NAME, value='section')
+        time.sleep(1)  
+        print(f"      selected market {market}")        
 
-        #looping through each date
-        for section in sections:
-          section_date = []
-          section_date.append(section.find_element(by=By.CLASS_NAME, value='section-header-title').text)
-                    
-          games = WebDriverWait(section, 5).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'event-information')))
-          for game in games:
-            odds = game.find_element(by=By.XPATH, value='.//div[contains(@class, "runner-list")]')
-            list_odds.append(odds.text)
-            teams_container = game.find_element(by=By.CLASS_NAME, value='teams-container').text
-            teams.append(teams_container)
+        games = WebDriverWait(driver, 5).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'event-information')))
+        for game in games:
+          date_time_str = game.find_element(by=By.XPATH, value='.//*[@class="date ui-countdown"]').text
+          list_dates.append(date_time_str)
 
-          #storing the date of matches in each section
-          section_date = section_date * len(games)
-          list_dates.append(section_date)
+          odds = game.find_element(by=By.XPATH, value='.//div[contains(@class, "runner-list")]')
+          list_odds.append(odds.text)
+          
+          teams_container = game.find_element(by=By.CLASS_NAME, value='teams-container').text
+          list_teams.append(teams_container)
         
-        list_dates = [element for section in list_dates for element in section]  #unpack nested lists
         #storing data dicts
+        dict_odds[f'dates_{m_key}'] = list_dates        
+        dict_odds[f'teams_{m_key}'] = list_teams
         dict_odds[f'odds_{m_key}']  = list_odds
-        dict_odds[f'teams_{m_key}'] = teams
-        dict_odds[f'dates_{m_key}'] = list_dates
-        print(f"      added {len(list_dates)} dates")
+        print(f"      added {len(list_dates)} games")
 
 
       # concat markets and make 1 dataframe per league (still inside for loop)
@@ -144,9 +136,8 @@ for country in dict_countries:
       tomorrow = today + datetime.timedelta(days=1)
       df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('In-Play', today.strftime("%A, %d %B"), x))
       df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Today', today.strftime("%A, %d %B"), x))
-      df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Tomorrow', tomorrow.strftime("%A, %d %B"), x))
-      df_data['Dates'] = df_data['Dates'].apply(lambda x: x.split(',')[1].strip())
-      df_data['Dates'] = df_data['Dates'].apply(lambda x: datetime.datetime.strptime(str(today.year) + ' ' + x, '%Y %d %B'))
+      df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Tomorrow', tomorrow.strftime("%d %b"), x))
+      df_data['Dates'] = df_data['Dates'].apply(lambda x: datetime.datetime.strptime(str(today.year) + ' ' + x, '%Y %d %b %H:%M'))
 
       #storing dataframe of each league in dictionary
       dict_frames[dict_countries[country][league_idx]] = df_data

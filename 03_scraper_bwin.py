@@ -80,7 +80,6 @@ for country in dict_countries:
       for game in games:
         date_time_str = game.find_element(by=By.XPATH, value='.//ms-prematch-timer').text  # 'Tomorrow / 8:30 PM' or ''
         #date_str, start_time_str = [x.strip() for x in date_time_str.split('/')]
-
         
         teams = game.find_elements(by=By.XPATH,value='.//div[@class="participant-container"]')
         if len(teams) != 2:
