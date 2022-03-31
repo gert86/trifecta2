@@ -16,7 +16,7 @@ import re
 url = 'https://www.betfair.com/sport/football'
 outfile_name = './scraped/dict_betfair_test.pck'
 dict_countries = {
-          'german football': ['German Bundesliga', 'German Bundesliga 2'],
+               'german football': ['German Bundesliga', 'German Bundesliga 2'],
         #   'italian football': ['Italian Serie A', 'Italian Serie B'],
         #   'spanish football': ['Spanish La Liga', 'Spanish Segunda Division'],
         #   'english football': ['English Premier League', 'English League 1', 'English League 2'],
@@ -106,15 +106,16 @@ for country in dict_countries:
         for section in sections:
           section_date = []
           section_date.append(section.find_element(by=By.CLASS_NAME, value='section-header-title').text)
-          #finding rows, each representing one football match
-          rows = WebDriverWait(section, 5).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'event-information')))
-          for row in rows:
-            odds = row.find_element(by=By.XPATH, value='.//div[contains(@class, "runner-list")]')
+                    
+          games = WebDriverWait(section, 5).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'event-information')))
+          for game in games:
+            odds = game.find_element(by=By.XPATH, value='.//div[contains(@class, "runner-list")]')
             list_odds.append(odds.text)
-            teams_container = row.find_element(by=By.CLASS_NAME, value='teams-container').text
+            teams_container = game.find_element(by=By.CLASS_NAME, value='teams-container').text
             teams.append(teams_container)
+
           #storing the date of matches in each section
-          section_date = section_date * len(rows)
+          section_date = section_date * len(games)
           list_dates.append(section_date)
         
         list_dates = [element for section in list_dates for element in section]  #unpack nested lists
@@ -157,10 +158,18 @@ for country in dict_countries:
 
 driver.quit()
 
+for league, df in dict_frames.items():
+  print(f"  \n{league}")
+  for idx, row in df.iterrows():
+    home_team, away_team = str(row['Teams']).split('\n')
+    print(f"    {row['Dates']}: {home_team} vs. {away_team}")
+    for curr_market in market_dict.keys():
+      odds = str(row[curr_market]).replace('\n', ' ')
+      print(f"      {curr_market}: {odds}")
+
 #save file
 output = open(outfile_name, 'wb')
 pickle.dump(dict_frames, output)
 output.close()
 print(f"Done. Stored to {outfile_name}")
 
-# WORKS
