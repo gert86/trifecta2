@@ -15,19 +15,19 @@ import re
 
 # PARAMS
 url = 'https://www.betfair.com/sport/football'
-outfile_name = './scraped/dict_betfair_test.pck'
+outfile_name = './scraped/dict_betfair.pck'
 dict_leagues = {
                'Germany Bundesliga'     : ('german football','German Bundesliga'),
-              # 'Germany 2. Bundesliga'  : ('german football', 'German Bundesliga 2'),
-              # 'Italy Serie A'          : ('italian football', 'Italian Serie A'),
-              # 'Italy Serie A'          : ('italian football', 'Italian Serie B'),
-              # 'Spain La Liga'          : ('spanish football', 'Spanish La Liga'),
-              # 'Spain Segunda Division' : ('spanish football', 'Spanish Segunda Division'),
-              # 'England Premier League' : ('english football', 'English Premier League'), 
-              # 'England League 1'       : ('english football', 'English League 1'),
-              # 'England League 2'       : ('english football', 'English League 2'),
-              # 'France Ligue 1'         : ('french football', 'French Ligue 1'),
-              # 'France Ligue 2'         : ('french football','French Ligue 2'),
+               'Germany 2. Bundesliga'  : ('german football', 'German Bundesliga 2'),
+               'Italy Serie A'          : ('italian football', 'Italian Serie A'),
+               'Italy Serie B'          : ('italian football', 'Italian Serie B'),
+               'Spain La Liga'          : ('spanish football', 'Spanish La Liga'),
+               'Spain Segunda Division' : ('spanish football', 'Spanish Segunda Division'),
+               'England Premier League' : ('english football', 'English Premier League'), 
+               'England League 1'       : ('english football', 'English League 1'),
+               'England League 2'       : ('english football', 'English League 2'),
+               'France Ligue 1'         : ('french football', 'French Ligue 1'),
+               'France Ligue 2'         : ('french football','French Ligue 2'),
                } 
               
 dict_markets =  {
@@ -54,7 +54,7 @@ time.sleep(2)
 accept = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="onetrust-accept-btn-handler"]')))         
 accept.click()
 
-# # click accept cookies
+# # click accept cookies with retries
 # num_tries = 0
 # success = False
 # while num_tries < 3 and success == False:
@@ -67,7 +67,6 @@ accept.click()
 #     success = False
 #     print(f"Accepting cookies failed {num_tries} times")
 #     time.sleep(num_tries)
-
 
 
 # set website language to English and wait for reload
@@ -101,7 +100,6 @@ for league, league_data in dict_leagues.items():
     # click on country's league button (e.g. "German Bundesliga")
     league_button = WebDriverWait(competitions_table, 5).until(EC.element_to_be_clickable((By.XPATH, './/a[contains(@data-galabel,' +'"' + league_id + '"' + ')]')))
     league_button.click()
-    print(f"  selected league {league}")            
 
     dict_odds = {}
     for market, market_data in dict_markets.items():
@@ -120,8 +118,11 @@ for league, league_data in dict_leagues.items():
 
       games = WebDriverWait(driver, 5).until(EC.visibility_of_all_elements_located((By.CLASS_NAME, 'event-information')))              
       for game in games:
-        date_time_str = game.find_element(by=By.XPATH, value='.//*[@class="date ui-countdown"]').text
-        list_dates.append(date_time_str)
+        try:
+          date_time_str = game.find_element(by=By.XPATH, value='.//*[@class="date ui-countdown"]').text
+          list_dates.append(date_time_str)
+        except:
+          continue        
 
         class_id = 'market-3-runners' if market=='3way' else 'market-2-runners'
         odds = game.find_element(by=By.XPATH, value=f'.//div[@class="details-market {class_id}"]')
@@ -130,12 +131,12 @@ for league, league_data in dict_leagues.items():
         teams_container = game.find_element(by=By.CLASS_NAME, value='teams-container').text
         list_teams.append(teams_container)
       
-      #storing data dicts
+      #storing 1 data dict per market
       dict_odds[f'dates_{market}'] = list_dates        
       dict_odds[f'teams_{market}'] = list_teams
       dict_odds[f'odds_{market}']  = list_odds
 
-    # concat markets and make 1 dataframe per league (still inside for loop)
+    # concat dicts and make 1 dataframe per league (still inside for loop)
     df_list = []
     for market in dict_markets.keys():
       df_list.append(pd.DataFrame({'Dates':dict_odds[f'dates_{market}'], 'Teams':dict_odds[f'teams_{market}'], market:dict_odds[f'odds_{market}']}).set_index(['Teams', 'Dates'])) 
@@ -148,11 +149,13 @@ for league, league_data in dict_leagues.items():
     df_data = df_data.replace('SUSPENDED\n', '', regex=True)
     df_data = df_data.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
-    # replace words "In-Play", "Today" and "Tomorrow" with numeric dates
-    df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('In-Play', today.strftime("%A, %d %B"), x))
-    df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Today', today.strftime("%A, %d %B"), x))
+    # replace words "In-Play", "Today" and "Tomorrow" with numeric dates or add date if missing
+    df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('In-Play', today.strftime("%d %b"), x))
+    df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Today', today.strftime("%d %b"), x))
     df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Tomorrow', tomorrow.strftime("%d %b"), x))
+    df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('^[0-2][0-9]:[0-5][0-9]$', today.strftime("%d %b") + ' ' + x, x))    
     df_data['Dates'] = df_data['Dates'].apply(lambda x: datetime.datetime.strptime(str(today.year) + ' ' + x, '%Y %d %b %H:%M'))
+    df_data['Dates'] = df_data['Dates'].apply(lambda x: datetime.datetime.strptime(str(x.date()), '%Y-%m-%d'))
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data
