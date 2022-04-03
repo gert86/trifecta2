@@ -19,21 +19,24 @@ outfile_name = './scraped/dict_tipico.pck'
 dict_leagues = {
                'Germany Bundesliga'     : 'germany/bundesliga',
                'Germany 2. Bundesliga'  :'germany/2-bundesliga',
-               'Italy Serie A'          : 'italy/serie-a',
-               'Italy Serie B'          : 'italy/serie-b',
-               'Spain La Liga'          : 'spain/la-liga',
-               'Spain Segunda Division' : 'spain/la-liga-2',
-               'England Premier League' : 'england/premier-league', 
-               'England League 1'       : 'england/league-one',
-               'England League 2'       : 'england/league-two',
-               'France Ligue 1'         : 'france/ligue-1',
-               'France Ligue 2'         : 'france/ligue-2',
+              #  'Italy Serie A'          : 'italy/serie-a',
+              #  'Italy Serie B'          : 'italy/serie-b',
+              #  'Spain La Liga'          : 'spain/la-liga',
+              #  'Spain Segunda Division' : 'spain/la-liga-2',
+              #  'England Premier League' : 'england/premier-league', 
+              #  'England League 1'       : 'england/league-one',
+              #  'England League 2'       : 'england/league-two',
+              #  'France Ligue 1'         : 'france/ligue-1',
+              #  'France Ligue 2'         : 'france/ligue-2',
                }    
     
 dict_markets =  {
-                '3way'    : '3-Way',
-                'over2.5' : 'Over/Under', 
-                'btts'    : 'Both Teams to Score'
+                '3-way'                 : '3-Way',
+                'over-under'            : 'Over/Under',           # todo: which amount?
+                'double-chance'         : 'Double chance',
+                'draw-no-bet'           : 'Draw no bet',
+                'over-under-halftime'   : 'Halftime-Over/Under',  # todo: which amount?
+                'handicap'              : 'Handicap'              # todo: which amount?
                 }         
 
 # checks            
@@ -58,108 +61,119 @@ accept.click()
 count = 0
 dict_frames = {} # 1 dataframe per league to be filled
 for league, league_data in dict_leagues.items():
+  df_data = pd.DataFrame(columns=['Dates', 'Teams'] + list(dict_markets.keys()))
+  df_data = df_data.set_index(['Dates', 'Teams'])
   count = count + 1
   curr_loop_str = f"{league}"
   print(f"League {count} of {len(dict_leagues)}: {curr_loop_str}...")
   league_url_suffix = league_data
+
   try:        
     # navigate to subpage
     full_url = url + league_url_suffix
     driver.get(full_url)
     time.sleep(2)
-        
-    # TODO: Currently not changing dropdown boxes
-    # Use the following code to change dd values (BEFORE getting dropdowns)
-    # Current problem: Site does not allow the same selected value in different dds
-    #first_dropdown = Select(dropdowns[0])
-    #first_dropdown.select_by_visible_text(market)            
-    dropdowns = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'SportHeader-styles-drop-down')))
-    dropdown_markets = []
-    for i in range(0, len(dropdowns)):
-      dropdown_markets.append(Select(dropdowns[i]).first_selected_option.accessible_name)
-    if not set(dict_markets.values()).issubset(set(dropdown_markets)):
-      print(f"Not all configured markets {dict_markets.values()} are visible: {dropdown_markets}")
-      exit(-1)    
 
-          
-    # get table and immediate children    
-    table = driver.find_element(by=By.XPATH, value='//*[@id="app"]/main/main/section/div/div[1]/div/div/div')            
-    children=table.find_elements(by=By.XPATH,value='./*')
-
-    # children are a mix of dates (<div>) and cells containing game data (<a>). 
-    # Need to be processed in order
-    games_with_dates = []
-    date_str = ''
-    for child in children:
-      if child.tag_name == 'div':
-        try:
-          if ',' in child.text:
-            date_time_obj = datetime.datetime.strptime(child.text.split(',')[1].strip(), '%d.%m').replace(year=datetime.datetime.now().year)
-            date_str = date_time_obj.strftime('%Y-%m-%d')            
-        except:
-          pass
-      if child.tag_name == 'a':
-        games_with_dates.append((child, date_str))
-
-    # that would be the easy way, if we would not need the dates
-    #games = table.find_elements(by=By.XPATH,value='./a[@class="EventRow-styles-event-row"]')
     
-    df_data = pd.DataFrame(columns=['Dates', 'Teams']+list(dict_markets.keys()))
-    for game,date_str in games_with_dates:
-      child_divs=game.find_elements(by=By.XPATH,value='./div')
-      if len(child_divs) < 3:
-        continue
-      if len(child_divs[0].find_elements(by=By.XPATH, value='.//*[@class="EventDateTime-styles-time EventDateTime-styles-no-date"]')) != 1:
-        continue
-      if len(child_divs[1].find_elements(by=By.XPATH,value='.//*[@class="EventTeams-styles-team-title"]')) != 2:
-        continue
+    # init dropdown_markets
+    dropdown_markets = []  # what dropdowns currently show      
+    dropdowns = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'SportHeader-styles-drop-down')))
+    num_dropdowns = len(dropdowns)
+    for dropdown in dropdowns:
+      dd_text = Select(dropdown).first_selected_option.accessible_name
+      dropdown_markets.append(dd_text)
 
-      if not date_str:
-        date_str = date_str = datetime.datetime.today().strftime('%Y-%m-%d')
-
-      start_time_str = child_divs[0].find_element(by=By.XPATH, value='.//*[@class="EventDateTime-styles-time EventDateTime-styles-no-date"]').text
-      home_team = child_divs[1].find_elements(by=By.XPATH,value='.//*[@class="EventTeams-styles-team-title"]')[0].text
-      away_team = child_divs[1].find_elements(by=By.XPATH,value='.//*[@class="EventTeams-styles-team-title"]')[1].text
-      print(f"    {date_str} {start_time_str}: {home_team} vs. {away_team}")
-
-      odds_dict = {}
-      for i in range(2, len(child_divs)):
-        odd_buttons = child_divs[i].find_elements(by=By.XPATH,value='.//button')
-        num_odd_buttons = len(odd_buttons)
-        curr_market_dd = dropdown_markets[i-2] if i-2 < len(dropdown_markets) else ''
-        if num_odd_buttons < 2 or num_odd_buttons > 3 or curr_market_dd not in dict_markets.values():
-          continue
-                
-        market = list(dict_markets.keys())[list(dict_markets.values()).index(curr_market_dd)] # key from value
-        if num_odd_buttons == 3:
-          odd_home, odd_draw, odd_away = odd_buttons[0].text, odd_buttons[1].text, odd_buttons[2].text
-          print(f"      {market}: {odd_home}, {odd_draw}, {odd_away}")
-          odds_dict[market] = f"{odd_home}\n{odd_draw}\n{odd_away}"
-        elif num_odd_buttons == 2:
-          odd_home, odd_away = odd_buttons[0].text, odd_buttons[1].text
-          print(f"      {market}: {odd_home}, {odd_away}")
-          odds_dict[market] = f"{odd_home}\n{odd_away}"
-        else:      
-          print(f"      Found no odds for {market}")
-          continue
+    remaining_markets = list(dict_markets.values())   # what dropdowns should be set to in the future
+    while remaining_markets:
+      # change dd boxes which show non-relevant markets to those of interest
+      for i in range(num_dropdowns):
+        dd_text = dropdown_markets[i]
+        if dd_text in remaining_markets:
+          remaining_markets.remove(dd_text)
+          print(f"{dd_text} is already selected in dropdown #{i} - keep it")
+        elif remaining_markets:
+          new_text = remaining_markets.pop(0)
+          dropdown_markets[i] = new_text
+          print(f"Changing dropdown #{i} to {new_text}")
+          Select(dropdowns[i]).select_by_visible_text(new_text)
           
-      tmp = {'Dates': date_str, 'Teams': home_team+'\n'+away_team}
-      tmp.update(odds_dict)
-      df_data = df_data.append(tmp, ignore_index=True)
+            
+      # get table and immediate children    
+      table = driver.find_element(by=By.XPATH, value='//*[@id="app"]/main/main/section/div/div[1]/div/div/div')            
+      children=table.find_elements(by=By.XPATH,value='./*')
+
+      # children are a mix of dates (<div>) and cells containing game data (<a>). 
+      # Need to be processed in order
+      games_with_dates = []
+      date_str = ''
+      for child in children:
+        if child.tag_name == 'div':
+          try:
+            if ',' in child.text:
+              date_time_obj = datetime.datetime.strptime(child.text.split(',')[1].strip(), '%d.%m').replace(year=datetime.datetime.now().year)
+              date_str = date_time_obj.strftime('%Y-%m-%d')            
+          except:
+            pass
+        if child.tag_name == 'a':
+          games_with_dates.append((child, date_str))
+
+      # that would be the easy way, if we would not need the dates
+      #games = table.find_elements(by=By.XPATH,value='./a[@class="EventRow-styles-event-row"]')
+      
+      
+      for game,date_str in games_with_dates:
+        child_divs=game.find_elements(by=By.XPATH,value='./div')
+        if len(child_divs) < 3:
+          continue
+        if len(child_divs[0].find_elements(by=By.XPATH, value='.//*[@class="EventDateTime-styles-time EventDateTime-styles-no-date"]')) != 1:
+          continue
+        if len(child_divs[1].find_elements(by=By.XPATH,value='.//*[@class="EventTeams-styles-team-title"]')) != 2:
+          continue
+
+        if not date_str:
+          date_str = date_str = datetime.datetime.today().strftime('%Y-%m-%d')
+
+        start_time_str = child_divs[0].find_element(by=By.XPATH, value='.//*[@class="EventDateTime-styles-time EventDateTime-styles-no-date"]').text
+        home_team = child_divs[1].find_elements(by=By.XPATH,value='.//*[@class="EventTeams-styles-team-title"]')[0].text
+        away_team = child_divs[1].find_elements(by=By.XPATH,value='.//*[@class="EventTeams-styles-team-title"]')[1].text
+        print(f"    {date_str} {start_time_str}: {home_team} vs. {away_team}")
+        df_key = (date_str, home_team+'\n'+away_team)
+        if not df_key in df_data.index:
+          df_data.loc[df_key, :] = None
+          
+        odds_dict = {}
+        for i in range(2, len(child_divs)):
+          odd_buttons = child_divs[i].find_elements(by=By.XPATH,value='.//button')
+          num_odd_buttons = len(odd_buttons)
+          curr_market_dd = dropdown_markets[i-2] if i-2 < len(dropdown_markets) else ''
+          if num_odd_buttons < 2 or num_odd_buttons > 3 or curr_market_dd not in dict_markets.values():
+            continue
+                  
+          market = list(dict_markets.keys())[list(dict_markets.values()).index(curr_market_dd)] # key from value
+          if num_odd_buttons == 3:
+            odd_home, odd_draw, odd_away = odd_buttons[0].text, odd_buttons[1].text, odd_buttons[2].text
+            print(f"      {market}: {odd_home}, {odd_draw}, {odd_away}")
+            odds_dict[market] = f"{odd_home}\n{odd_draw}\n{odd_away}"
+          elif num_odd_buttons == 2:
+            odd_home, odd_away = odd_buttons[0].text, odd_buttons[1].text
+            print(f"      {market}: {odd_home}, {odd_away}")
+            odds_dict[market] = f"{odd_home}\n{odd_away}"
+          else:      
+            print(f"      Found no odds for {market}")
+            continue
+
+        for market, odds in odds_dict.items():          
+          df_data.at[df_key, market] = odds
 
     # clean data
     df_data = df_data.fillna('')
     df_data = df_data.replace('SUSPENDED\n', '', regex=True)
     df_data = df_data.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
-    # replace words "In-Play", "Today" and "Tomorrow" with numeric dates
-    #today = datetime.datetime.today()
-    #tomorrow = today + datetime.timedelta(days=1)
-    #df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('In-Play', today.strftime("%A, %d %B"), x))
-    #df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Today', today.strftime("%A, %d %B"), x))
-    #df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('Tomorrow', tomorrow.strftime("%A, %d %B"), x))    
-    #df_data['Dates'] = df_data['Dates'].apply(lambda x: x.split(',')[1].strip())
+    # make date being a real datatime object
+    df_data = df_data.reset_index()
     df_data['Dates'] = df_data['Dates'].apply(lambda x: datetime.datetime.strptime(x, '%Y-%m-%d'))
+    df_data = df_data.set_index(['Dates', 'Teams'])
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data

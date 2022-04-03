@@ -31,9 +31,11 @@ dict_leagues = {
                } 
               
 dict_markets =  {
-                '3way'    : 'Match Odds',  # needs special handling
-                'over2.5' : 'Over/Under 2.5 Goals', 
-                'btts'    : 'Both teams to Score?'
+                '3-way'             : 'Match Odds',          # separate column
+                'over-under_1.5'    : 'Over/Under 1.5 Goals',
+                'over-under_2.5'    : 'Over/Under 2.5 Goals', 
+                'btts'              : 'Both teams to Score?',
+                'double-chance'     : 'Double Chance',
                 }
 
 # checks            
