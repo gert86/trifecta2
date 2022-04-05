@@ -32,12 +32,13 @@ dict_leagues = {
     
 dict_markets =  {
                 '3-way'                 : '3-Way',
-                #'over-under'            : 'Over/Under',           # todo: which amount?
-                'double-chance'         : 'Double chance',
+                'over-under'            : 'Over/Under',           # todo: which amount?
+                'handicap'              : 'Handicap',             # todo: which amount?
+                #'double-chance'         : 'Double chance',
                 'btts'                  : 'Both Teams to Score',
-                'draw-no-bet'           : 'Draw no bet',
+                #'draw-no-bet'           : 'Draw no bet',
                 #'over-under-halftime'   : 'Halftime-Over/Under',  # todo: which amount?
-                #'handicap'              : 'Handicap'              # todo: which amount?
+               
                 }         
 
 # checks            
@@ -89,6 +90,7 @@ for league, league_data in dict_leagues.items():
       # change dd boxes which show non-relevant markets to those of interest
       for i in range(num_dropdowns):
         dd_text = dropdown_markets[i]
+        # TODO: Fails with '3-way', 'double-chance', 'btts', 'draw-no-bet' (in this order)
         if dd_text in remaining_markets:
           remaining_markets.remove(dd_text)
           print(f"{dd_text} is already selected in dropdown #{i} - keep it")
