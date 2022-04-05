@@ -32,10 +32,10 @@ dict_leagues = {
               
 dict_markets =  {
                 '3-way'             : 'Match Odds',          # separate column
-                'over-under_1.5'    : 'Over/Under 1.5 Goals',
-                'over-under_2.5'    : 'Over/Under 2.5 Goals', 
+                #'over-under_1.5'    : 'Over/Under 1.5 Goals',
+                #'over-under_2.5'    : 'Over/Under 2.5 Goals', 
                 'btts'              : 'Both teams to Score?',
-                'double-chance'     : 'Double Chance',
+                #'double-chance'     : 'Double Chance',   # TODO: irgendwas geht damit nicht 
                 }
 
 # checks            
@@ -110,8 +110,8 @@ for league, league_data in dict_leagues.items():
       list_teams = []
       list_odds = []
 
-      # 3way has its own column without a drop down box, for others change the dropdown value
-      if market != '3way':        
+      # 3-way has its own column without a drop down box, for others change the dropdown value
+      if market != '3-way':        
         dropdown = WebDriverWait(driver, 5).until(EC.element_to_be_clickable((By.CLASS_NAME, 'marketchooser-container')))
         dropdown.click()
         chooser = WebDriverWait(dropdown, 5).until(EC.element_to_be_clickable((By.XPATH, '//*[contains(text(),'+'"'+str(market_data)+'"'+')]')))
@@ -126,7 +126,7 @@ for league, league_data in dict_leagues.items():
         except:
           continue        
 
-        class_id = 'market-3-runners' if market=='3way' else 'market-2-runners'
+        class_id = 'market-3-runners' if market=='3-way' else 'market-2-runners'
         odds = game.find_element(by=By.XPATH, value=f'.//div[@class="details-market {class_id}"]')
         list_odds.append(odds.text)
         
@@ -144,7 +144,7 @@ for league, league_data in dict_leagues.items():
       df_list.append(pd.DataFrame({'Dates':dict_odds[f'dates_{market}'], 'Teams':dict_odds[f'teams_{market}'], market:dict_odds[f'odds_{market}']}).set_index(['Teams', 'Dates'])) 
     df_data = pd.concat(df_list, axis=1, sort=True)            
     df_data.reset_index(inplace=True)
-    df_data.rename(columns={'index':'Teams'}, inplace=True)
+    #df_data.rename(columns={'index':'Teams'}, inplace=True)
 
     # clean data
     df_data = df_data.fillna('')
@@ -158,25 +158,17 @@ for league, league_data in dict_leagues.items():
     df_data['Dates'] = df_data['Dates'].apply(lambda x: re.sub('^[0-2][0-9]:[0-5][0-9]$', today.strftime("%d %b") + ' ' + x, x))    
     df_data['Dates'] = df_data['Dates'].apply(lambda x: datetime.datetime.strptime(str(today.year) + ' ' + x, '%Y %d %b %H:%M'))
     df_data['Dates'] = df_data['Dates'].apply(lambda x: datetime.datetime.strptime(str(x.date()), '%Y-%m-%d'))
+    df_data.set_index(['Dates', 'Teams'], inplace=True)
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data
-    print(f"Finished {curr_loop_str}\n\n")
+    print(f"Finished {league}\n\n")
   except Exception as e:
     print(f"\n\nException in {curr_loop_str}: {str(e)}\n\n")
     driver.quit()
     exit(-1)
 
 driver.quit()
-
-for league, df in dict_frames.items():
-  print(f"  \n{league}")
-  for idx, row in df.iterrows():
-    home_team, away_team = str(row['Teams']).split('\n')
-    print(f"    {row['Dates']}: {home_team} vs. {away_team}")
-    for market in dict_markets.keys():
-      odds = str(row[market]).replace('\n', ' ')
-      print(f"      {market}: {odds}")
 
 #save file
 output = open(outfile_name, 'wb')

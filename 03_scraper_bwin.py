@@ -18,25 +18,25 @@ outfile_name = './scraped/dict_bwin.pck'
 dict_leagues = {
                'Germany Bundesliga'     : 'germany-17/bundesliga-102842',
                'Germany 2. Bundesliga'  : 'germany-17/2nd-bundesliga-102845',
-              #  'Italy Serie A'          : 'italy-20/serie-a-102846',
-              #  'Italy Serie B'          : 'italy-20/serie-b-102848',
-              #  'Spain La Liga'          : 'spain-28/laliga-102829',
-              #  'Spain Segunda Division' : 'spain-28/laliga-2-102830',
-              #  'England Premier League' : 'england-14/premier-league-102841', 
-              #  'England League 1'       : 'england-14/league-one-101551',
-              #  'England League 2'       : 'england-14/league-two-101550',
-              #  'France Ligue 1'         : 'france-16/ligue-1-102843',
-              #  'France Ligue 2'         : 'france-16/ligue-2-102376',               
+               'Italy Serie A'          : 'italy-20/serie-a-102846',
+               'Italy Serie B'          : 'italy-20/serie-b-102848',
+               'Spain La Liga'          : 'spain-28/laliga-102829',
+               'Spain Segunda Division' : 'spain-28/laliga-2-102830',
+               'England Premier League' : 'england-14/premier-league-102841', 
+               'England League 1'       : 'england-14/league-one-101551',
+               'England League 2'       : 'england-14/league-two-101550',
+               'France Ligue 1'         : 'france-16/ligue-1-102843',
+               'France Ligue 2'         : 'france-16/ligue-2-102376',               
                }    
 
 dict_markets =  {
                 '3-way'                 : 'Result 1X2',
                 '3-way-halftime'        : 'Halftime 1X2',
-                'over-under'            : 'Over/Under',             # todo: which amount?
+                #'over-under'            : 'Over/Under',             # todo: which amount?
                 'btts'                  : 'Both teams to score?',
-                'draw-no-bet'           : 'Draw No Bet',
+                #'draw-no-bet'           : 'Draw No Bet',
                 'handicap_1_0'          : 'Handicap 1:0',
-                'next-goal'             : 'Next Goal'
+                #'next-goal'             : 'Next Goal'
                 }
               
 # checks            
@@ -120,9 +120,9 @@ for league, league_data in dict_leagues.items():
           date_time_str = game.find_element(by=By.XPATH, value='.//ms-prematch-timer').text
         except:
           continue
-        date_time_str = re.sub('Today\s*/?\s+',    today.strftime("%d/%m/%y "), date_time_str)
-        date_time_str = re.sub('Tomorrow\s*/?\s+', tomorrow.strftime("%d/%m/%y "), date_time_str)
-        dt_temp = datetime.datetime.strptime(date_time_str, '%d/%m/%y %I:%M %p')
+        date_time_str = re.sub('Today\s*/?\s+',    today.strftime("%m/%d/%y "), date_time_str)
+        date_time_str = re.sub('Tomorrow\s*/?\s+', tomorrow.strftime("%m/%d/%y "), date_time_str)
+        dt_temp = datetime.datetime.strptime(date_time_str, '%m/%d/%y %I:%M %p')
         date_time_str = dt_temp.strftime('%Y-%m-%d %H:%M')
         date_str = dt_temp.strftime('%Y-%m-%d')
 
@@ -174,7 +174,7 @@ for league, league_data in dict_leagues.items():
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data
-    print(f"Finished {curr_loop_str}\n\n")
+    print(f"Finished {league}\n\n")
   except Exception as e:
     print(f"\n\nException in {curr_loop_str}: {str(e)}\n\n")
     driver.quit()

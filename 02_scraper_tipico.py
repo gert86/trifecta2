@@ -19,24 +19,25 @@ outfile_name = './scraped/dict_tipico.pck'
 dict_leagues = {
                'Germany Bundesliga'     : 'germany/bundesliga',
                'Germany 2. Bundesliga'  :'germany/2-bundesliga',
-              #  'Italy Serie A'          : 'italy/serie-a',
-              #  'Italy Serie B'          : 'italy/serie-b',
-              #  'Spain La Liga'          : 'spain/la-liga',
-              #  'Spain Segunda Division' : 'spain/la-liga-2',
-              #  'England Premier League' : 'england/premier-league', 
-              #  'England League 1'       : 'england/league-one',
-              #  'England League 2'       : 'england/league-two',
-              #  'France Ligue 1'         : 'france/ligue-1',
-              #  'France Ligue 2'         : 'france/ligue-2',
+               'Italy Serie A'          : 'italy/serie-a',
+               'Italy Serie B'          : 'italy/serie-b',
+               'Spain La Liga'          : 'spain/la-liga',
+               'Spain Segunda Division' : 'spain/la-liga-2',
+               'England Premier League' : 'england/premier-league', 
+               'England League 1'       : 'england/league-one',
+               'England League 2'       : 'england/league-two',
+               'France Ligue 1'         : 'france/ligue-1',
+               'France Ligue 2'         : 'france/ligue-2',
                }    
     
 dict_markets =  {
                 '3-way'                 : '3-Way',
-                'over-under'            : 'Over/Under',           # todo: which amount?
+                #'over-under'            : 'Over/Under',           # todo: which amount?
                 'double-chance'         : 'Double chance',
+                'btts'                  : 'Both Teams to Score',
                 'draw-no-bet'           : 'Draw no bet',
-                'over-under-halftime'   : 'Halftime-Over/Under',  # todo: which amount?
-                'handicap'              : 'Handicap'              # todo: which amount?
+                #'over-under-halftime'   : 'Halftime-Over/Under',  # todo: which amount?
+                #'handicap'              : 'Handicap'              # todo: which amount?
                 }         
 
 # checks            
@@ -171,13 +172,13 @@ for league, league_data in dict_leagues.items():
     df_data = df_data.applymap(lambda x: x.strip() if isinstance(x, str) else x)
 
     # make date being a real datatime object
-    df_data = df_data.reset_index()
+    df_data.reset_index(inplace=True)
     df_data['Dates'] = df_data['Dates'].apply(lambda x: datetime.datetime.strptime(x, '%Y-%m-%d'))
     df_data = df_data.set_index(['Dates', 'Teams'])
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data
-    print(f"Finished {curr_loop_str}\n\n")
+    print(f"Finished {league}\n\n")
   except Exception as e:
     print(f"\n\nException in {curr_loop_str}: {str(e)}\n\n")
     driver.quit()
