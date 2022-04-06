@@ -14,12 +14,8 @@ bookies = ['betfair', 'tipico', 'bwin']
 ###########################################################################################################
 # Helper functions
 
-def score2(val1, val2):
-  val = 1.0/(1.0/val1 + 1.0/val2)
-  return f"{val:.4f}"
-
-def score(val1, val2, val3):
-  val = 1.0/(1.0/val1 + 1.0/val2 + 1.0/val3)
+def score(vals):
+  val = 1.0/((1.0/np.asarray(vals)).sum())
   return f"{val:.4f}"
 
 def printHistogram(scores, bookie_list, market):
@@ -67,13 +63,13 @@ for bookie, unified_dict in eligible_dicts.items():
       date, home_team, away_team = index
       odd_1, odd_X, odd_2 = [float(x) for x in row[market].split('\n')]
       if not index in best_odds.keys():
-        #print(f"Found new game: {date}: {home_team} vs {away_team} -> Odds: {odd_1} / {odd_X} / {odd_2}. Score: { score(odd_1,odd_X,odd_2) }")
-        best_odds[index] = ((odd_1, odd_X, odd_2), (bookie, bookie, bookie))
+        #print(f"Found new game: {date}: {home_team} vs {away_team} -> Odds: {odd_1} / {odd_X} / {odd_2}. Score: { score([odd_1,odd_X,odd_2]) }")
+        best_odds[index] = ([odd_1, odd_X, odd_2], [bookie, bookie, bookie])
       else:
         #print(f"Game already exists: {date}: {home_team} vs {away_team}")      
         old_odds = best_odds[index][0]
         old_bookies = best_odds[index][1]
-        old_score = score(old_odds[0], old_odds[1], old_odds[2])
+        old_score = score(old_odds)
         improved = False
 
         if best_odds[index][0][0] < odd_1:
@@ -88,7 +84,7 @@ for bookie, unified_dict in eligible_dicts.items():
 
         if improved:
           new_odds = best_odds[index][0]
-          new_score = score(new_odds[0], new_odds[1], new_odds[2])
+          new_score = score(new_odds)
           #print(f"  Improved Odds: {old_odds} --> {new_odds}. Improved score: {old_score} --> {new_score}")
 
 # verify best odds 3-way 
@@ -98,7 +94,7 @@ for index, odds in best_odds.items():
   date, home_team, away_team = index
   odd_1, odd_X, odd_2 = odds[0]
   bookie_1, bookie_X, bookie_2 = odds[1]
-  curr_score = float(score(odd_1, odd_X, odd_2))
+  curr_score = float(score([odd_1, odd_X, odd_2]))
   best_scores[index] = curr_score
   #print(f"Best score {home_team} vs. {away_team}: {curr_score} -> {bookie_1}/{bookie_X}/{bookie_2}")
   if curr_score > 1.0:
@@ -135,13 +131,13 @@ for bookie, unified_dict in eligible_dicts.items():
       date, home_team, away_team = index
       odd_1, odd_2 = [float(x) for x in row[market].split('\n')]
       if not index in best_odds.keys():
-        #print(f"Found new game: {date}: {home_team} vs {away_team} -> Odds: {odd_1} / {odd_2}. Score: { score2(odd_1,odd_2) }")
+        #print(f"Found new game: {date}: {home_team} vs {away_team} -> Odds: {odd_1} / {odd_2}. Score: { score([odd_1,odd_2]) }")
         best_odds[index] = ((odd_1, odd_2), (bookie, bookie))
       else:
         #print(f"Game already exists: {date}: {home_team} vs {away_team}")      
         old_odds = best_odds[index][0]
         old_bookies = best_odds[index][1]
-        old_score = score2(old_odds[0], old_odds[1])
+        old_score = score(old_odds)
         improved = False
 
         if best_odds[index][0][0] < odd_1:
@@ -153,7 +149,7 @@ for bookie, unified_dict in eligible_dicts.items():
 
         if improved:
           new_odds = best_odds[index][0]
-          new_score = score2(new_odds[0], new_odds[1])
+          new_score = score(new_odds)
           #print(f"  Improved Odds: {old_odds} --> {new_odds}. Improved score: {old_score} --> {new_score}")
 
 # verify best odds btts 
@@ -163,7 +159,7 @@ for index, odds in best_odds.items():
   date, home_team, away_team = index
   odd_1, odd_2 = odds[0]
   bookie_1, bookie_2 = odds[1]
-  curr_score = float(score2(odd_1, odd_2))
+  curr_score = float(score([odd_1, odd_2]))
   best_scores[index] = curr_score
   #print(f"Best score {home_team} vs. {away_team}: {curr_score} -> {bookie_1}/{bookie_2}")
   if curr_score > 1.0:
@@ -175,10 +171,6 @@ for index, odds in best_odds.items():
 # print stats btts
 print(f"Done. Found {len(surebets)} surebets for {market}.")
 printHistogram(best_scores, bookies, market)
-
-
-
-
 
 
 
