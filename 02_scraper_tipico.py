@@ -32,13 +32,12 @@ dict_leagues = {
     
 dict_markets =  {
                 '3-way'                 : '3-Way',
-                'over-under'            : 'Over/Under',           # todo: which amount?
-                'handicap'              : 'Handicap',             # todo: which amount?
-                #'double-chance'         : 'Double chance',
+                #'over-under'            : 'Over/Under',           # todo: which amount?
+                #'handicap'              : 'Handicap',             # todo: which amount?
+                'double-chance'         : 'Double chance',        # 1X, 12, 2X -> will be unified after parsing!
                 'btts'                  : 'Both Teams to Score',
-                #'draw-no-bet'           : 'Draw no bet',
-                #'over-under-halftime'   : 'Halftime-Over/Under',  # todo: which amount?
-               
+                'draw-no-bet'           : 'Draw no bet',
+                #'over-under-halftime'   : 'Halftime-Over/Under',  # todo: which amount?               
                 }         
 
 # checks            
@@ -90,12 +89,18 @@ for league, league_data in dict_leagues.items():
       # change dd boxes which show non-relevant markets to those of interest
       for i in range(num_dropdowns):
         dd_text = dropdown_markets[i]
-        # TODO: Fails with '3-way', 'double-chance', 'btts', 'draw-no-bet' (in this order)
         if dd_text in remaining_markets:
           remaining_markets.remove(dd_text)
           print(f"{dd_text} is already selected in dropdown #{i} - keep it")
         elif remaining_markets:
-          new_text = remaining_markets.pop(0)
+          for r in remaining_markets:
+            if r in dropdown_markets:
+              # Note: Page does not allow 2 dropdowns showing the same text!!!
+              print(f"Changing dropdown #{i} but not to {r} because that's present already!")
+            else:
+              new_text = r
+              break
+          remaining_markets.remove(new_text)
           dropdown_markets[i] = new_text
           print(f"Changing dropdown #{i} to {new_text}")
           Select(dropdowns[i]).select_by_visible_text(new_text)
@@ -144,29 +149,21 @@ for league, league_data in dict_leagues.items():
         if not df_key in df_data.index:
           df_data.loc[df_key, :] = None
           
-        odds_dict = {}
         for i in range(2, len(child_divs)):
-          odd_buttons = child_divs[i].find_elements(by=By.XPATH,value='.//button')
-          num_odd_buttons = len(odd_buttons)
           curr_market_dd = dropdown_markets[i-2] if i-2 < len(dropdown_markets) else ''
-          if num_odd_buttons < 2 or num_odd_buttons > 3 or curr_market_dd not in dict_markets.values():
+          if curr_market_dd not in dict_markets.values():
             continue
-                  
-          market = list(dict_markets.keys())[list(dict_markets.values()).index(curr_market_dd)] # key from value
-          if num_odd_buttons == 3:
-            odd_home, odd_draw, odd_away = odd_buttons[0].text, odd_buttons[1].text, odd_buttons[2].text
-            print(f"      {market}: {odd_home}, {odd_draw}, {odd_away}")
-            odds_dict[market] = f"{odd_home}\n{odd_draw}\n{odd_away}"
-          elif num_odd_buttons == 2:
-            odd_home, odd_away = odd_buttons[0].text, odd_buttons[1].text
-            print(f"      {market}: {odd_home}, {odd_away}")
-            odds_dict[market] = f"{odd_home}\n{odd_away}"
-          else:      
-            print(f"      Found no odds for {market}")
-            continue
-
-        for market, odds in odds_dict.items():          
+          market = list(dict_markets.keys())[list(dict_markets.values()).index(curr_market_dd)] # key from dd value
+          odds = child_divs[i].text
+          if market == 'double-chance':
+            try:
+              odd_list = odds.split('\n')
+              odds = '\n'.join([odd_list[0], odd_list[2], odd_list[1]])   # unify to 1X, 2X, 12
+            except:
+              odds = ''
           df_data.at[df_key, market] = odds
+          nl = '\n'; print(f"      {market}: {odds.replace(nl, ',')}")    
+          
 
     # clean data
     df_data = df_data.fillna('')

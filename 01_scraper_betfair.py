@@ -31,11 +31,11 @@ dict_leagues = {
                } 
               
 dict_markets =  {
-                '3-way'             : 'Match Odds',          # separate column
+                '3-way'             : 'Match Odds',          # separate column, always use as first in list!
                 #'over-under_1.5'    : 'Over/Under 1.5 Goals',
                 #'over-under_2.5'    : 'Over/Under 2.5 Goals', 
                 'btts'              : 'Both teams to Score?',
-                #'double-chance'     : 'Double Chance',   # TODO: irgendwas geht damit nicht 
+                'double-chance'     : 'Double Chance',   # 1X, 2X, 12
                 }
 
 # checks            
@@ -126,8 +126,12 @@ for league, league_data in dict_leagues.items():
         except:
           continue        
 
-        class_id = 'market-3-runners' if market=='3-way' else 'market-2-runners'
-        odds = game.find_element(by=By.XPATH, value=f'.//div[@class="details-market {class_id}"]')
+        if market == '3-way':
+          odds = game.find_elements(by=By.XPATH, value=f'.//div[@class="details-market market-3-runners"]')[-1]
+        elif market == 'double-chance':
+          odds = game.find_elements(by=By.XPATH, value=f'.//div[@class="details-market market-3-runners"]')[0]
+        else:
+          odds = game.find_element(by=By.XPATH, value=f'.//div[@class="details-market market-2-runners"]')
         list_odds.append(odds.text)
         
         teams_container = game.find_element(by=By.CLASS_NAME, value='teams-container').text

@@ -31,11 +31,12 @@ dict_leagues = {
 
 dict_markets =  {
                 '3-way'                 : 'Result 1X2',
-                '3-way-halftime'        : 'Halftime 1X2',
+                #'3-way-halftime'        : 'Halftime 1X2',
                 #'over-under'            : 'Over/Under',             # todo: which amount?
                 'btts'                  : 'Both teams to score?',
-                #'draw-no-bet'           : 'Draw No Bet',
-                'handicap_1_0'          : 'Handicap 1:0',
+                'draw-no-bet'           : 'Draw No Bet',
+                #'handicap_1_0'          : 'Handicap 1:0',
+                'double-chance'         : 'Double Chance',  # 1X, 2X, 12
                 #'next-goal'             : 'Next Goal'
                 }
               
@@ -97,6 +98,8 @@ for league, league_data in dict_leagues.items():
     remaining_markets = list(dict_markets.values())   # what dropdowns should be set to in the future
     while remaining_markets:
       # change dd boxes which show non-relevant markets to those of interest
+      if len(remaining_markets) < len(dict_markets):
+        time.sleep(5)
       for i in range(num_dropdowns):
         dd_text = dropdown_markets[i]
         if dd_text in remaining_markets:
@@ -121,7 +124,8 @@ for league, league_data in dict_leagues.items():
         except:
           continue
         date_time_str = re.sub('Today\s*/?\s+',    today.strftime("%m/%d/%y "), date_time_str)
-        date_time_str = re.sub('Tomorrow\s*/?\s+', tomorrow.strftime("%m/%d/%y "), date_time_str)
+        date_time_str = re.sub('Starting in .*',   today.strftime("%m/%d/%y %I:%M %p"), date_time_str)
+        date_time_str = re.sub('Tomorrow\s*/?\s+', tomorrow.strftime("%m/%d/%y "), date_time_str)        
         dt_temp = datetime.datetime.strptime(date_time_str, '%m/%d/%y %I:%M %p')
         date_time_str = dt_temp.strftime('%Y-%m-%d %H:%M')
         date_str = dt_temp.strftime('%Y-%m-%d')
@@ -137,30 +141,15 @@ for league, league_data in dict_leagues.items():
         if not df_key in df_data.index:
           df_data.loc[df_key, :] = None
 
-        odds_dict = {}
         markets = game.find_elements(by=By.XPATH,value='.//div[@class="grid-group-container"]/ms-option-group')      
         for i in range(0, len(markets)):                                        
-          child_options = markets[i].find_elements(by=By.XPATH,value='./ms-option')
-          num_child_options = len(child_options)
           curr_market_dd = dropdown_markets[i] if i < len(dropdown_markets) else ''
-          if num_child_options < 2 or num_child_options > 3 or curr_market_dd not in dict_markets.values():
+          if curr_market_dd not in dict_markets.values():
             continue
-
-          market = list(dict_markets.keys())[list(dict_markets.values()).index(curr_market_dd)] # key from value
-          if num_child_options == 3:
-            odd_home, odd_draw, odd_away = child_options[0].text, child_options[1].text, child_options[2].text
-            print(f"      {market}: {odd_home}, {odd_draw}, {odd_away}")
-            odds_dict[market] = f"{odd_home}\n{odd_draw}\n{odd_away}"
-          elif num_child_options == 2:
-            odd_home, odd_away = child_options[0].text, child_options[1].text
-            print(f"      {market}: {odd_home}, {odd_away}")
-            odds_dict[market] = f"{odd_home}\n{odd_away}"  
-          else:      
-            print(f"      Found no odds for {market}")
-            continue 
-
-        for market, odds in odds_dict.items():          
-          df_data.at[df_key, market] = odds                              
+          market = list(dict_markets.keys())[list(dict_markets.values()).index(curr_market_dd)] # key from dd value
+          odds = markets[i].text
+          df_data.at[df_key, market] = odds
+          nl = '\n'; print(f"      {market}: {odds.replace(nl, ',')}")
 
     # clean data
     df_data = df_data.fillna('')

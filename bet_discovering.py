@@ -25,12 +25,14 @@ def printHistogram(scores, bookie_list, market):
   if not scores:
     return
   sorted_vals = list(scores.values())
-  sorted_vals.sort(reverse=True)
-  _ = plt.hist(sorted_vals, bins=50, range=(0.85, 1.15))
+  sorted_vals.sort(reverse=True)  
   mean = np.asarray(sorted_vals).mean()
-  max = np.asarray(sorted_vals).max()
+  maxi = np.asarray(sorted_vals).max()
+  mini = np.asarray(sorted_vals).min()
+  _ = plt.hist(sorted_vals, bins=50, range=(min(0.85, mini), 1.15))
   plt.axvline(mean, color='k', linestyle='dashed', linewidth=1)
-  plt.title(f"Score {market} for {bookie_list}:\n Mean = {mean:.3f}; Max = {max:.3f}")
+  plt.axvline(1.0, color='r', linestyle='solid', linewidth=2)
+  plt.title(f"Score {market} for {bookie_list}:\n Mean = {mean:.3f}; Max = {maxi:.3f}")
   plt.show()
 
 
@@ -78,8 +80,11 @@ def findBets(unified_dicts, market):
     odds = odds_data[0]
     bookies = odds_data[1]
     curr_score = float(score(odds))
+    # TODO: This is actually an approximation
+    if market == "double-chance":
+      curr_score = curr_score * 2
     best_scores[index] = curr_score
-    #print(f"Best score {home_team} vs. {away_team}: {curr_score} -> {joinEm(bookies)")
+    #print(f"Best score {home_team} vs. {away_team}: {curr_score} -> {joinEm(bookies)}")
     if curr_score > 1.0:
       print(f"Surebet: {date.date()}: {home_team} vs {away_team} " + \
             f"-> Odds: {joinEm(odds)} " + \
@@ -88,7 +93,7 @@ def findBets(unified_dicts, market):
 
   # print stats
   print(f"Done. Found {len(surebets)} surebets for {market}.")
-  printHistogram(best_scores, bookies, market)
+  printHistogram(best_scores, eligible_dicts.keys(), market)
 
 
 ###########################################################################################################
@@ -103,4 +108,5 @@ for bookie in bookies:
 
 findBets(unified_dicts, '3-way')
 findBets(unified_dicts, 'btts')
+findBets(unified_dicts, 'double-chance')
 
