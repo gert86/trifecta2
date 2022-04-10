@@ -9,7 +9,7 @@ import os
 
 # Parameters
 hist_outfile_name = './scraped/dict_historic.pck'
-bookies = ['betfair', 'tipico', 'bwin']
+bookies = ['betfair', 'tipico', 'bwin', 'interwetten']
 
 
 ###########################################################################################################
@@ -76,7 +76,7 @@ def unifyNames(dict_unified_names, scraped_dicts):
 
     for league in dict_unified_names:
       all_teams = dict_unified_names[league]['home_team'].unique().tolist()
-      if league not in dict_home_name_matching:
+      if league not in dict_home_name_matching or len(dict_home_name_matching[league]) == 0:
           continue
 
       columns = list(scraped_dict[league].columns)

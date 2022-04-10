@@ -9,7 +9,7 @@ import sympy
 import os
 
 # Parameters
-bookies = ['betfair', 'tipico', 'bwin']
+bookies = ['betfair', 'tipico', 'bwin', 'interwetten']
 
 ###########################################################################################################
 # Helper functions
