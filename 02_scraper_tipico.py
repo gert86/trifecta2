@@ -11,10 +11,12 @@ import pandas as pd
 import pickle
 import datetime
 import re
+import os
 
 # PARAMS
 url = 'https://sports.tipico.de/en/all/football/'
-outfile_name = './scraped/dict_tipico.pck'
+data_dir = './data'
+outfile_name = os.path.join(f'./{data_dir}', 'dict_tipico.pck')
 # Note: Tipico allows a filter for all these leagues in 1 page with a dedicated URL (would be lot faster)
 dict_leagues = {
                'Germany Bundesliga'     : 'germany/bundesliga',
@@ -36,7 +38,7 @@ dict_markets =  {
                 #'handicap'              : 'Handicap',             # todo: which amount?
                 'double-chance'         : 'Double chance',        # 1X, 12, 2X -> will be unified after parsing!
                 'btts'                  : 'Both Teams to Score',
-                'draw-no-bet'           : 'Draw no bet',
+                #'draw-no-bet'           : 'Draw no bet',
                 #'over-under-halftime'   : 'Halftime-Over/Under',  # todo: which amount?               
                 }         
 
@@ -73,12 +75,17 @@ for league, league_data in dict_leagues.items():
     # navigate to subpage
     full_url = url + league_url_suffix
     driver.get(full_url)
-    time.sleep(2)
+    #time.sleep(2)
 
     
     # init dropdown_markets
     dropdown_markets = []  # what dropdowns currently show      
-    dropdowns = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'SportHeader-styles-drop-down')))
+    dropdowns = []
+    try:
+      dropdowns = WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'SportHeader-styles-drop-down')))
+    except Exception as ex:
+      print(f"Could not find any games for {league}\n")
+      continue
     num_dropdowns = len(dropdowns)
     for dropdown in dropdowns:
       dd_text = Select(dropdown).first_selected_option.accessible_name
@@ -91,23 +98,26 @@ for league, league_data in dict_leagues.items():
         dd_text = dropdown_markets[i]
         if dd_text in remaining_markets:
           remaining_markets.remove(dd_text)
-          print(f"{dd_text} is already selected in dropdown #{i} - keep it")
+          #print(f"{dd_text} is already selected in dropdown #{i} - keep it")
         elif remaining_markets:
           for r in remaining_markets:
             if r in dropdown_markets:
               # Note: Page does not allow 2 dropdowns showing the same text!!!
-              print(f"Changing dropdown #{i} but not to {r} because that's present already!")
+              pass
+              #print(f"Try changing dropdown #{i}, but not to {r} because that's present already!")
+              # try next remaining
             else:
               new_text = r
-              break
-          remaining_markets.remove(new_text)
-          dropdown_markets[i] = new_text
-          print(f"Changing dropdown #{i} to {new_text}")
-          Select(dropdowns[i]).select_by_visible_text(new_text)
-          
-            
-      # get table and immediate children    
-      table = driver.find_element(by=By.XPATH, value='//*[@id="app"]/main/main/section/div/div[1]/div/div/div')            
+              remaining_markets.remove(new_text)
+              dropdown_markets[i] = new_text
+              #print(f"Changing dropdown #{i} to {new_text}")
+              Select(dropdowns[i]).select_by_visible_text(new_text)              
+              break   # next dd
+
+                      
+      # get table and immediate children
+      time.sleep(1)   # otherwise stale elements exception
+      table = driver.find_element(by=By.XPATH, value='//div[@data-testid="competition-events"]')            
       children=table.find_elements(by=By.XPATH,value='./*')
 
       # children are a mix of dates (<div>) and cells containing game data (<a>). 
@@ -119,15 +129,11 @@ for league, league_data in dict_leagues.items():
           try:
             if ',' in child.text:
               date_time_obj = datetime.datetime.strptime(child.text.split(',')[1].strip(), '%d.%m').replace(year=datetime.datetime.now().year)
-              date_str = date_time_obj.strftime('%Y-%m-%d')            
+              date_str = date_time_obj.strftime('%Y-%m-%d')   
           except:
             pass
         if child.tag_name == 'a':
-          games_with_dates.append((child, date_str))
-
-      # that would be the easy way, if we would not need the dates
-      #games = table.find_elements(by=By.XPATH,value='./a[@class="EventRow-styles-event-row"]')
-      
+          games_with_dates.append((child, date_str))      
       
       for game,date_str in games_with_dates:
         child_divs=game.find_elements(by=By.XPATH,value='./div')
@@ -144,7 +150,7 @@ for league, league_data in dict_leagues.items():
         start_time_str = child_divs[0].find_element(by=By.XPATH, value='.//*[@class="EventDateTime-styles-time EventDateTime-styles-no-date"]').text
         home_team = child_divs[1].find_elements(by=By.XPATH,value='.//*[@class="EventTeams-styles-team-title"]')[0].text
         away_team = child_divs[1].find_elements(by=By.XPATH,value='.//*[@class="EventTeams-styles-team-title"]')[1].text
-        print(f"    {date_str} {start_time_str}: {home_team} vs. {away_team}")
+        #print(f"    {date_str} {start_time_str}: {home_team} vs. {away_team}")
         df_key = (date_str, home_team+'\n'+away_team)
         if not df_key in df_data.index:
           df_data.loc[df_key, :] = None
@@ -162,7 +168,8 @@ for league, league_data in dict_leagues.items():
             except:
               odds = ''
           df_data.at[df_key, market] = odds
-          nl = '\n'; print(f"      {market}: {odds.replace(nl, ',')}")    
+          nl = '\n'; 
+          #print(f"      {market}: {odds.replace(nl, ',')}")    
           
 
     # clean data
@@ -177,7 +184,7 @@ for league, league_data in dict_leagues.items():
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data
-    print(f"Finished {league}\n\n")
+    print(f"Finished {league} -> Found {len(dict_frames[league])} games\n\n")
   except Exception as e:
     print(f"\n\nException in {curr_loop_str}: {str(e)}\n\n")
     driver.quit()

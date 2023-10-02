@@ -12,10 +12,12 @@ import pandas as pd
 import pickle
 import datetime
 import re
+import os
 
 # PARAMS
 url = 'https://www.betfair.com/sport/football'
-outfile_name = './scraped/dict_betfair.pck'
+data_dir = './data'
+outfile_name = os.path.join(f'./{data_dir}', 'dict_betfair.pck')
 dict_leagues = {
                'Germany Bundesliga'     : ('german football','German Bundesliga'),
                'Germany 2. Bundesliga'  : ('german football', 'German Bundesliga 2'),
@@ -27,7 +29,7 @@ dict_leagues = {
                'England League 1'       : ('english football', 'English League 1'),
                'England League 2'       : ('english football', 'English League 2'),
                'France Ligue 1'         : ('french football', 'French Ligue 1'),
-               'France Ligue 2'         : ('french football','French Ligue 2'),
+               'France Ligue 2'         : ('french football','French Ligue 2')
                } 
               
 dict_markets =  {
@@ -95,7 +97,7 @@ for league, league_data in dict_leagues.items():
     competition.click()
 
     # click on countries button (e.g. "German Football")
-    competitions_table = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, 'mod-multipickazmenu-1057')))
+    competitions_table = WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.ID, 'mod-multipickazmenu-1056')))
     country_button = WebDriverWait(competitions_table, 5).until(EC.element_to_be_clickable((By.XPATH, './/div[contains(@data-category,' +'"' + country + '"' + ')]')))
     country_button.click() 
 
@@ -166,7 +168,7 @@ for league, league_data in dict_leagues.items():
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data
-    print(f"Finished {league}\n\n")
+    print(f"Finished {league} -> Found {len(dict_frames[league])} games\n\n")
   except Exception as e:
     print(f"\n\nException in {curr_loop_str}: {str(e)}\n\n")
     driver.quit()

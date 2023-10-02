@@ -8,8 +8,17 @@ import sympy
 import os
 
 # Parameters
-hist_outfile_name = './scraped/dict_historic.pck'
+data_dir = './data'
+hist_outfile_name = os.path.join(f'./{data_dir}', 'dict_historic.pck')
 bookies = ['betfair', 'tipico', 'bwin', 'interwetten']
+
+
+fixed_translations = {"Atletico" : "Ath Madrid",
+                      "Wolverhampton" : "Wolves",
+                      "Wolverhampton Wanderers" : "Wolves",
+                      "Hellas" : "Verona",
+                      "Inter Milan" : "Inter"
+                     }
 
 
 ###########################################################################################################
@@ -41,7 +50,7 @@ def getHistoricData(file_name, enforce_download = False):
   for league in dict_countries:
     print(f"Downloading historic data for {league}")
     frames = []
-    for i in range(17, 22):
+    for i in range(22, 24):    # season 22/23 and 23/24 -> always include most recent season!!!
         season = f"{i}{i+1}"
         full_url = f"{base_url}/{season}/{dict_countries[league]}.csv"
         try:
@@ -71,6 +80,8 @@ def unifyNames(dict_unified_names, scraped_dicts):
       scraped_dict[league].sort_index(inplace=True)
       scraped_dict[league].reset_index(inplace=True)
       scraped_dict[league][['home_team', 'away_team']] = scraped_dict[league]['Teams'].str.extract(r'(.+)\n(.+)')
+      for key,val in fixed_translations.items():
+         scraped_dict[league] = scraped_dict[league].replace(key, val)
       dict_home_name_matching[league] = scraped_dict[league].groupby('home_team', as_index=False).count()[['home_team']]
       dict_away_name_matching[league] = scraped_dict[league].groupby('away_team', as_index=False).count()[['away_team']]        
 
@@ -88,6 +99,23 @@ def unifyNames(dict_unified_names, scraped_dicts):
 
       dict_home_name_matching[league][['teams_matched', 'score']] = dict_home_name_matching[league]['home_team'].apply(match_no_nan).apply(pd.Series)
       dict_away_name_matching[league][['teams_matched', 'score']] = dict_away_name_matching[league]['away_team'].apply(match_no_nan).apply(pd.Series)      
+
+      # check for suspicious name mappings that will probably cause violations
+      num_home_uniq_keys = len(dict_home_name_matching[league]['home_team'])
+      num_home_uniq_vals = len(dict_home_name_matching[league]['teams_matched'].unique())
+      if num_home_uniq_keys != num_home_uniq_vals:
+        print(f"\nPossible violation in HOME name mapping of {league} / {bookie}: {num_home_uniq_keys} vs. {num_home_uniq_vals} teams")
+      num_away_uniq_keys = len(dict_away_name_matching[league]['away_team'])
+      num_away_uniq_vals = len(dict_away_name_matching[league]['teams_matched'].unique()) 
+      if num_away_uniq_keys != num_away_uniq_vals:
+        print(f"\nPossible violation in AWAY name mapping of {league} / {bookie}: {num_away_uniq_keys} vs. {num_away_uniq_vals} teams")
+
+      # uncomment to verify violations manually -> look for low scores
+      # if league=="England Premier League":
+      #  print(f"This is the fuzzy name mapping result for {league}:")
+      #  print(dict_home_name_matching[league])
+      #  print(dict_away_name_matching[league])
+      #  print(f"---------------")
 
       #Replacing "Historical Data" team names (teams_matched) in  betfair dataframes
       home_teams = pd.merge(scraped_dict[league], dict_home_name_matching[league], on='home_team',
@@ -109,8 +137,8 @@ dict_historical = getHistoricData(hist_outfile_name)
 # load scraping results
 scraped_dicts = {}
 for bookie in bookies:
-  scraped_dict = pickle.load(open(f'./scraped/dict_{bookie}.pck', 'rb'))  
-  print(f"{bookie}: Length: {len(scraped_dict)}. Keys: {scraped_dict.keys()}")
+  scraped_dict = pickle.load(open(f'./{data_dir}/dict_{bookie}.pck', 'rb'))  
+  #print(f"{bookie}: Length: {len(scraped_dict)}. Keys: {scraped_dict.keys()}")
   scraped_dicts[bookie] = scraped_dict  
 
 # unify names
@@ -118,7 +146,7 @@ unifyNames(dict_historical, scraped_dicts)
 
 # store
 for bookie, scraped_dict in scraped_dicts.items():
-  outfile_name = f'./scraped/dict_{bookie}_unified.pck'
+  outfile_name = f'./{data_dir}/dict_{bookie}_unified.pck'
   pickle.dump(scraped_dict, open(outfile_name, 'wb'))
   print(f"Done. Stored to {outfile_name}")
 

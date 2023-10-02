@@ -11,10 +11,12 @@ import pandas as pd
 import pickle
 import datetime
 import re
+import os
 
 # PARAMS
 url = 'https://sports.bwin.com/en/sports/football-4/betting/'
-outfile_name = './scraped/dict_bwin.pck'
+data_dir = './data'
+outfile_name = os.path.join(f'./{data_dir}', 'dict_bwin.pck')
 dict_leagues = {
                'Germany Bundesliga'     : 'germany-17/bundesliga-102842',
                'Germany 2. Bundesliga'  : 'germany-17/2nd-bundesliga-102845',
@@ -34,7 +36,7 @@ dict_markets =  {
                 #'3-way-halftime'        : 'Halftime 1X2',
                 #'over-under'            : 'Over/Under',             # todo: which amount?
                 'btts'                  : 'Both teams to score?',
-                'draw-no-bet'           : 'Draw No Bet',
+                #'draw-no-bet'           : 'Draw No Bet',
                 #'handicap_1_0'          : 'Handicap 1:0',
                 'double-chance'         : 'Double Chance',  # 1X, 2X, 12
                 #'next-goal'             : 'Next Goal'
@@ -53,10 +55,14 @@ driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), opti
 driver.get(url)
 driver.maximize_window()
 
-# click accept cookies
-accept = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="onetrust-accept-btn-handler"]')))
-accept.click()
+if options.headless == False:
+  # click accept cookies
+  accept = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="onetrust-accept-btn-handler"]')))
+  accept.click()
 
+  # close the annoying overlay message
+  overlay = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, '//*[@id="messages-with-overlay"]/div/vn-content-message/div/span')))
+  overlay.click()
 
 #loop through leagues
 count = 0
@@ -74,23 +80,20 @@ for league, league_data in dict_leagues.items():
     # navigate to subpage
     full_url = url + league_url_suffix
     driver.get(full_url)
-    time.sleep(2)
+    #time.sleep(2)
 
     # get main table
-    table = driver.find_element(by=By.XPATH, value='//*[@id="main-view"]/ms-fixture-list/div/div/div/div/ms-grid')            
-        
-    # # get dropdowns below main table - old
-    # WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'group-selector')))
-    # dropdowns = table.find_elements(by=By.XPATH,value='.//ms-grid-header/div/ms-group-selector[@class="group-selector"]')
-    # dropdown_markets = []
-    # for i in range(0, len(dropdowns)):
-    #   dropdown_markets.append(dropdowns[i].text)
+    table_path = '//*[@id="main-view"]//ms-widget-layout/ms-widget-slot/ms-composable-widget/ms-widget-slot[2]/ms-tabbed-grid-widget/ms-grid'
+    WebDriverWait(driver, 5).until(EC.presence_of_element_located((By.XPATH, table_path)))
+    table = driver.find_element(by=By.XPATH, value=table_path)
 
     # init dropdown_markets
     dropdown_markets = []  # what dropdowns currently show      
     WebDriverWait(driver, 5).until(EC.presence_of_all_elements_located((By.CLASS_NAME, 'group-selector')))
-    dropdowns = table.find_elements(by=By.XPATH,value='.//ms-grid-header/div/ms-group-selector[@class="group-selector"]')
+    dropdowns = table.find_elements(by=By.CLASS_NAME, value="group-selector")
     num_dropdowns = len(dropdowns)
+    if num_dropdowns==0:
+      raise Exception("Could not access dropdown to choose market")
     for dropdown in dropdowns:
       dd_text = dropdown.text
       dropdown_markets.append(dd_text)
@@ -99,21 +102,24 @@ for league, league_data in dict_leagues.items():
     while remaining_markets:
       # change dd boxes which show non-relevant markets to those of interest
       if len(remaining_markets) < len(dict_markets):
-        time.sleep(5)
+        time.sleep(2)
       for i in range(num_dropdowns):
         dd_text = dropdown_markets[i]
         if dd_text in remaining_markets:
           remaining_markets.remove(dd_text)
-          print(f"{dd_text} is already selected in dropdown #{i} - keep it")
+          #print(f"{dd_text} is already selected in dropdown #{i} - keep it")
         elif remaining_markets:
           new_text = remaining_markets.pop(0)
           dropdown_markets[i] = new_text
-          print(f"Changing dropdown #{i} to {new_text}")          
+          #print(f"Changing dropdown #{i} to {new_text}")          
           dropdowns[i].click()
-          nOptions = len(dropdowns[i].find_elements(by=By.XPATH, value='//div[@class="option"]'))
-          texts = [dropdowns[i].find_elements(by=By.XPATH, value='//div[@class="option"]')[o].text for o in range(nOptions)]
+
+          selector=dropdowns[i].find_elements(by=By.XPATH, value='//div[@class="select"]')
+
+          nOptions = len(selector[2].find_elements(by=By.CLASS_NAME, value="option"))
+          texts = [selector[2].find_elements(by=By.CLASS_NAME, value="option")[o].text for o in range(nOptions)]
           valids = {v:idx for idx, v in enumerate(texts) if v}
-          dropdowns[i].find_elements(by=By.XPATH, value='//div[@class="option"]')[ valids[new_text] ].click()  
+          selector[2].find_elements(by=By.CLASS_NAME, value="option")[ valids[new_text] ].click()  
 
       
 
@@ -136,7 +142,7 @@ for league, league_data in dict_leagues.items():
           continue
         home_team = teams[0].text
         away_team = teams[1].text 
-        print(f"    {date_str}: {home_team} vs. {away_team}")
+        #print(f"    {date_str}: {home_team} vs. {away_team}")
         df_key = (date_str, home_team+'\n'+away_team)
         if not df_key in df_data.index:
           df_data.loc[df_key, :] = None
@@ -149,7 +155,8 @@ for league, league_data in dict_leagues.items():
           market = list(dict_markets.keys())[list(dict_markets.values()).index(curr_market_dd)] # key from dd value
           odds = markets[i].text
           df_data.at[df_key, market] = odds
-          nl = '\n'; print(f"      {market}: {odds.replace(nl, ',')}")
+          nl = '\n'; 
+          #print(f"      {market}: {odds.replace(nl, ',')}")
 
     # clean data
     df_data = df_data.fillna('')
@@ -163,7 +170,7 @@ for league, league_data in dict_leagues.items():
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data
-    print(f"Finished {league}\n\n")
+    print(f"Finished {league} -> Found {len(dict_frames[league])} games\n\n")
   except Exception as e:
     print(f"\n\nException in {curr_loop_str}: {str(e)}\n\n")
     driver.quit()

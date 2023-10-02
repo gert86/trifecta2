@@ -11,6 +11,7 @@ import pandas as pd
 import pickle
 import datetime
 import re
+import os
 
 # TODO: 
 # Some sub-pages like 3-way-halftime, show more than 1 table. 
@@ -19,7 +20,8 @@ import re
 
 # PARAMS
 url = 'https://www.interwetten.com/en/sport/leaguelist?leagueIds='
-outfile_name = './scraped/dict_interwetten.pck'
+data_dir = './data'
+outfile_name = os.path.join(f'./{data_dir}', 'dict_interwetten.pck')
 
 dict_leagues = {
                'Germany Bundesliga'     : '1019',
@@ -28,7 +30,7 @@ dict_leagues = {
                'Italy Serie B'          : '405298',
                'Spain La Liga'          : '1030',
                'Spain Segunda Division' : '105034',
-               'England Premier League' : '1021', 
+               'England Premier League' : '1021',
                'England League 1'       : '10467',
                'England League 2'       : '10468',
                'France Ligue 1'         : '1024',
@@ -37,7 +39,7 @@ dict_leagues = {
 
 dict_markets =  {
                 '3-way'                 : '&offergroupid=7',
-                '3-way-halftime'        : '&offergroupid=108',
+                #'3-way-halftime'        : '&offergroupid=108',
                 #'over-under'            : '&offergroupid=8',    # todo: which amount?
                 'btts'                  : '&offergroupid=109',
                 #'handicap'              : '&offergroupid=10',   # todo: which handicap?
@@ -138,7 +140,7 @@ for league, league_data in dict_leagues.items():
 
     #storing dataframe of each league in dictionary
     dict_frames[league] = df_data
-    print(f"Finished {league}\n\n")
+    print(f"Finished {league} -> Found {len(dict_frames[league])} games\n\n")
   except Exception as e:
     print(f"\n\nException in {curr_loop_str}: {str(e)}\n\n")
     driver.quit()
