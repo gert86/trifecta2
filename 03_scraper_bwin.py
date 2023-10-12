@@ -41,7 +41,23 @@ dict_markets =  {
                 'double-chance'         : 'Double Chance',  # 1X, 2X, 12
                 #'next-goal'             : 'Next Goal'
                 }
-              
+# Main
+first_round = True
+for league, league_data in dict_leagues.items():
+  if first_round:
+    hlp = BetfairHelper(url, dict_markets)
+    hlp.acceptCookies()
+    hlp.setLanguageEnglish()
+  
+  hlp.navigateToLeague(league_data)
+  hlp.findEventsTable(live=False)
+  hlp.setDropdowns()
+  hlp.fetchAllMarketOdds(league_name=league)
+  first_round = False
+  
+hlp.saveToFile(outfile_name=outfile_name)
+exit(0)
+             
 # checks            
 if len(dict_leagues)==0 or len(dict_markets)==0 :
   print(f"Leagues and Markets must both be non-empty!")
